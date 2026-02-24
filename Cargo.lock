@@ -3569,6 +3569,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "collections",
  "futures 0.3.31",
  "gpui",
@@ -3582,6 +3583,7 @@ dependencies = [
  "serde",
  "serde_json",
  "settings",
+ "sha2",
  "slotmap",
  "smol",
  "tempfile",
@@ -21863,6 +21865,7 @@ dependencies = [
  "command_palette",
  "component",
  "component_preview",
+ "context_server",
  "copilot",
  "copilot_chat",
  "copilot_ui",
