@@ -1029,7 +1029,7 @@ impl AgentPanel {
         cx.subscribe(
             &context_server_store,
             |this, _, event: &ServerStatusChangedEvent, cx| {
-                if let ContextServerStatus::AuthRequired(_) = &event.status {
+                if let ContextServerStatus::AuthRequired = &event.status {
                     let server_id = event.server_id.clone();
                     let key = format!("mcp-oauth-auth-required-toast:{}", server_id.0);
                     let already_shown = KEY_VALUE_STORE
