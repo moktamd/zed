@@ -8,7 +8,7 @@ use client::{ZedLink, parse_zed_link};
 
 use db::kvp::KEY_VALUE_STORE;
 use editor::Editor;
-use fs::Fs;1
+use fs::Fs;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures::channel::{mpsc, oneshot};
 use futures::future;
