@@ -2183,7 +2183,7 @@ impl Panel for ThreadsPanel {
         self.set_width(size, cx);
     }
 
-    fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+    fn icon_button(&self, _cx: &App) -> PanelIconButton {
         PanelIconButton {
             icon: IconName::ThreadsSidebarLeftClosed,
             tooltip: "Threads Sidebar",
@@ -2191,7 +2191,7 @@ impl Panel for ThreadsPanel {
         }
     }
 
-    fn secondary_button(&self, _window: &Window, cx: &App) -> Option<(PanelIconButton, bool)> {
+    fn secondary_button(&self, cx: &App) -> Option<(PanelIconButton, bool)> {
         let is_active = self
             .multi_workspace
             .read_with(cx, |mw, cx| {

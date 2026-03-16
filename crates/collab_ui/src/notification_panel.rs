@@ -659,7 +659,7 @@ impl Panel for NotificationPanel {
         }
     }
 
-    fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+    fn icon_button(&self, _cx: &App) -> PanelIconButton {
         PanelIconButton {
             icon: if self.unseen_notifications.is_empty() {
                 IconName::Bell
@@ -671,7 +671,7 @@ impl Panel for NotificationPanel {
         }
     }
 
-    fn icon_label(&self, _window: &Window, cx: &App) -> Option<String> {
+    fn icon_label(&self, cx: &App) -> Option<String> {
         if !NotificationPanelSettings::get_global(cx).show_count_badge {
             return None;
         }

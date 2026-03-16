@@ -1579,7 +1579,7 @@ impl Panel for DebugPanel {
         Some(proto::PanelId::DebugPanel)
     }
 
-    fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+    fn icon_button(&self, _cx: &App) -> PanelIconButton {
         PanelIconButton {
             icon: IconName::Debug,
             tooltip: "Debug Panel",

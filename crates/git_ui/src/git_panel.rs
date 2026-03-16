@@ -5789,7 +5789,7 @@ impl Panel for GitPanel {
         cx.notify();
     }
 
-    fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+    fn icon_button(&self, _cx: &App) -> PanelIconButton {
         PanelIconButton {
             icon: ui::IconName::GitBranchAlt,
             tooltip: "Git Panel",
@@ -5801,7 +5801,7 @@ impl Panel for GitPanel {
         GitPanelSettings::get_global(cx).button
     }
 
-    fn icon_label(&self, _: &Window, cx: &App) -> Option<String> {
+    fn icon_label(&self, cx: &App) -> Option<String> {
         if !GitPanelSettings::get_global(cx).show_count_badge {
             return None;
         }

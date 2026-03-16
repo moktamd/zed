@@ -3191,7 +3191,7 @@ impl Panel for CollabPanel {
         });
     }
 
-    fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+    fn icon_button(&self, _cx: &App) -> PanelIconButton {
         PanelIconButton {
             icon: ui::IconName::UserGroup,
             tooltip: "Collab Panel",

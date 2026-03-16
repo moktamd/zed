@@ -42,11 +42,11 @@ pub trait Panel: Focusable + EventEmitter<PanelEvent> + Render + Sized {
     fn set_position(&mut self, position: DockPosition, window: &mut Window, cx: &mut Context<Self>);
     fn size(&self, window: &Window, cx: &App) -> Pixels;
     fn set_size(&mut self, size: Option<Pixels>, window: &mut Window, cx: &mut Context<Self>);
-    fn icon_button(&self, window: &Window, cx: &App) -> PanelIconButton;
-    fn icon_label(&self, _: &Window, _: &App) -> Option<String> {
+    fn icon_button(&self, cx: &App) -> PanelIconButton;
+    fn icon_label(&self, _: &App) -> Option<String> {
         None
     }
-    fn secondary_button(&self, _window: &Window, _cx: &App) -> Option<(PanelIconButton, bool)> {
+    fn secondary_button(&self, _cx: &App) -> Option<(PanelIconButton, bool)> {
         None
     }
     fn is_zoomed(&self, _window: &Window, _cx: &App) -> bool {
@@ -83,9 +83,9 @@ pub trait PanelHandle: Send + Sync {
     fn pane(&self, cx: &App) -> Option<Entity<Pane>>;
     fn size(&self, window: &Window, cx: &App) -> Pixels;
     fn set_size(&self, size: Option<Pixels>, window: &mut Window, cx: &mut App);
-    fn icon_button(&self, window: &Window, cx: &App) -> PanelIconButton;
-    fn icon_label(&self, _: &Window, _: &App) -> Option<String>;
-    fn secondary_button(&self, window: &Window, cx: &App) -> Option<(PanelIconButton, bool)>;
+    fn icon_button(&self, cx: &App) -> PanelIconButton;
+    fn icon_label(&self, _: &App) -> Option<String>;
+    fn secondary_button(&self, cx: &App) -> Option<(PanelIconButton, bool)>;
     fn panel_focus_handle(&self, cx: &App) -> FocusHandle;
     fn to_any(&self) -> AnyView;
     fn activation_priority(&self, cx: &App) -> u32;
@@ -171,16 +171,16 @@ where
         self.update(cx, |this, cx| this.set_size(size, window, cx))
     }
 
-    fn icon_button(&self, window: &Window, cx: &App) -> PanelIconButton {
-        self.read(cx).icon_button(window, cx)
+    fn icon_button(&self, cx: &App) -> PanelIconButton {
+        self.read(cx).icon_button(cx)
     }
 
-    fn icon_label(&self, window: &Window, cx: &App) -> Option<String> {
-        self.read(cx).icon_label(window, cx)
+    fn icon_label(&self, cx: &App) -> Option<String> {
+        self.read(cx).icon_label(cx)
     }
 
-    fn secondary_button(&self, window: &Window, cx: &App) -> Option<(PanelIconButton, bool)> {
-        self.read(cx).secondary_button(window, cx)
+    fn secondary_button(&self, cx: &App) -> Option<(PanelIconButton, bool)> {
+        self.read(cx).secondary_button(cx)
     }
 
     fn to_any(&self) -> AnyView {
@@ -882,7 +882,7 @@ impl PanelButtons {
 }
 
 impl Render for PanelButtons {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let dock = self.dock.read(cx);
         let active_index = dock.active_panel_index;
         let is_open = dock.is_open;
@@ -905,8 +905,8 @@ impl Render for PanelButtons {
                     icon,
                     tooltip: icon_tooltip,
                     action: toggle_action,
-                } = entry.panel.icon_button(window, cx);
-                let secondary_button = entry.panel.secondary_button(window, cx);
+                } = entry.panel.icon_button(cx);
+                let secondary_button = entry.panel.secondary_button(cx);
                 let name = entry.panel.persistent_name();
                 let panel = entry.panel.clone();
 
@@ -923,7 +923,7 @@ impl Render for PanelButtons {
                 };
 
                 let focus_handle = dock.focus_handle(cx);
-                let icon_label = entry.panel.icon_label(window, cx);
+                let icon_label = entry.panel.icon_label(cx);
 
                 Some(
                     right_click_menu(name)
@@ -1118,7 +1118,7 @@ pub mod test {
             self.size = size.unwrap_or(px(300.));
         }
 
-        fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+        fn icon_button(&self, _cx: &App) -> PanelIconButton {
             PanelIconButton {
                 icon: ui::IconName::Cog,
                 tooltip: "Test Panel",

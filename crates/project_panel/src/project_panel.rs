@@ -7057,7 +7057,7 @@ impl Panel for ProjectPanel {
         });
     }
 
-    fn icon_button(&self, _window: &Window, _cx: &App) -> PanelIconButton {
+    fn icon_button(&self, _cx: &App) -> PanelIconButton {
         PanelIconButton {
             icon: IconName::FileTree,
             tooltip: "Project Panel",
