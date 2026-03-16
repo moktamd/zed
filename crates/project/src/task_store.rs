@@ -4,6 +4,9 @@ use std::{
     sync::Arc,
 };
 
+use futures::future::join_all;
+use postage::{barrier, prelude::Stream as _};
+
 use anyhow::Context as _;
 use collections::HashMap;
 use fs::Fs;
@@ -35,6 +38,7 @@ pub struct StoreState {
     buffer_store: WeakEntity<BufferStore>,
     worktree_store: Entity<WorktreeStore>,
     toolchain_store: Arc<dyn LanguageToolchainStore>,
+    pending_update_barriers: Vec<barrier::Receiver>,
 }
 
 enum StoreMode {
@@ -175,6 +179,7 @@ impl TaskStore {
             buffer_store,
             toolchain_store,
             worktree_store,
+            pending_update_barriers: Vec::new(),
         })
     }
 
@@ -195,6 +200,7 @@ impl TaskStore {
             buffer_store,
             toolchain_store,
             worktree_store,
+            pending_update_barriers: Vec::new(),
         })
     }
 
@@ -281,10 +287,27 @@ impl TaskStore {
         })
     }
 
+    pub(super) fn register_pending_update(&mut self) -> barrier::Sender {
+        let (tx, rx) = barrier::channel();
+        if let TaskStore::Functional(state) = self {
+            state.pending_update_barriers.push(rx);
+        }
+        tx
+    }
+
     /// Returns a future that resolves when all pending task inventory updates
     /// (triggered by worktree scans discovering task files) have completed.
     pub fn pending_updates_completed(&mut self) -> impl Future<Output = ()> + use<> {
-        async {}
+        let barriers = match self {
+            TaskStore::Functional(state) => std::mem::take(&mut state.pending_update_barriers),
+            TaskStore::Noop => Vec::new(),
+        };
+        async move {
+            join_all(barriers.into_iter().map(|mut rx| async move {
+                let _ = rx.recv().await;
+            }))
+            .await;
+        }
     }
 
     pub(super) fn update_user_debug_scenarios(
