@@ -166,7 +166,7 @@ To publish an extension, open a PR to [the `zed-industries/extensions` repo](htt
 
 In your PR, do the following:
 
-1. Add your extension as a Git submodule within the `extensions/` directory under the `extensions/{extensionID}` path
+1. Add your extension as a Git submodule within the `extensions/` directory under the `extensions/{extension-id}` path
 
 ```sh
 git submodule add https://github.com/your-username/foobar-zed.git extensions/my-extension
