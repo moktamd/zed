@@ -35,7 +35,6 @@ dependencies = [
  "settings",
  "smol",
  "streaming_diff",
- "sum_tree",
  "task",
  "telemetry",
  "terminal",
