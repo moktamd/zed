@@ -136,14 +136,12 @@ impl Workspace {
     }
 
     pub fn run_git_worktree_tasks(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        dbg!("In run git worktree tasks");
         let project = self.project().clone();
 
         let worktree_tasks: Vec<(WorktreeId, TaskContext, Vec<WorktreeTaskDefinition>)> = {
             let project = project.read(cx);
             let task_store = project.task_store();
             let Some(inventory) = task_store.read(cx).task_inventory().cloned() else {
-                dbg!("No task inventory");
                 return;
             };
 
@@ -161,7 +159,6 @@ impl Workspace {
                     .collect();
 
                 if definitions.is_empty() {
-                    dbg!("Task inventory has no definitions");
                     continue;
                 }
 
@@ -182,7 +179,6 @@ impl Workspace {
         };
 
         if worktree_tasks.is_empty() {
-            dbg!("worktree tasks is empty");
             return;
         }
 
@@ -197,7 +193,6 @@ impl Workspace {
             let mut tasks = Vec::new();
             for (worktree_id, task_context, definitions) in worktree_tasks {
                 let id_base = format!("worktree_setup_{worktree_id}");
-                dbg!("getting running", definitions.len());
 
                 tasks.push(cx.spawn({
                     let workspace = workspace.clone();
