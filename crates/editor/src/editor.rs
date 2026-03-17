@@ -24013,6 +24013,7 @@ impl Editor {
                 path_key,
             } => {
                 self.tasks_update_task = Some(self.refresh_runnables(window, cx));
+                self.refresh_document_highlights(cx);
                 let buffer_id = buffer.read(cx).remote_id();
                 if self.buffer.read(cx).diff_for(buffer_id).is_none()
                     && let Some(project) = &self.project
@@ -24030,6 +24031,7 @@ impl Editor {
                     .invalidate_buffer(&buffer.read(cx).remote_id());
                 self.update_lsp_data(Some(buffer_id), window, cx);
                 self.refresh_inlay_hints(InlayHintRefreshReason::NewLinesShown, cx);
+                self.fetched_tree_sitter_chunks.remove(&buffer_id);
                 self.colorize_brackets(false, cx);
                 self.refresh_selected_text_highlights(true, window, cx);
                 cx.emit(EditorEvent::BufferRangesUpdated {
@@ -24067,26 +24069,6 @@ impl Editor {
                 });
                 cx.emit(EditorEvent::BuffersEdited {
                     buffer_ids: buffer_ids.clone(),
-                });
-            }
-            multi_buffer::Event::BufferRangesUpdated {
-                buffer,
-                path_key,
-                ranges,
-            } => {
-                self.refresh_inlay_hints(InlayHintRefreshReason::NewLinesShown, cx);
-                self.refresh_document_highlights(cx);
-                let buffer_id = buffer.read(cx).remote_id();
-                self.semantic_token_state.invalidate_buffer(&buffer_id);
-
-                self.fetched_tree_sitter_chunks.remove(&buffer_id);
-                self.colorize_brackets(false, cx);
-                self.update_lsp_data(None, window, cx);
-
-                cx.emit(EditorEvent::BufferRangesUpdated {
-                    buffer: buffer.clone(),
-                    path_key: path_key.clone(),
-                    ranges: ranges.clone(),
                 });
             }
             multi_buffer::Event::Reparsed(buffer_id) => {

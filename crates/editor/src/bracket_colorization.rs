@@ -9,6 +9,7 @@ use collections::HashMap;
 use gpui::{Context, HighlightStyle};
 use language::language_settings;
 use multi_buffer::Anchor;
+use text::ToOffset as _;
 use ui::{ActiveTheme, utils::ensure_minimum_contrast};
 
 impl Editor {
@@ -56,24 +57,28 @@ impl Editor {
                         .filter_map(|pair| {
                             let color_index = pair.color_index?;
 
-                            let open_range = pair.open_range.start.max(buffer_range.start)
-                                ..pair.open_range.end.min(buffer_range.end);
-                            let close_range = pair.close_range.start.max(buffer_range.start)
-                                ..pair.close_range.end.min(buffer_range.end);
+                            let context_start =
+                                excerpt.range.context.start.to_offset(&buffer_snapshot);
+                            let context_end = excerpt.range.context.end.to_offset(&buffer_snapshot);
 
-                            let buffer_open_range = if open_range.is_empty() {
-                                None
-                            } else {
+                            let buffer_open_range = if context_start <= pair.open_range.start
+                                && pair.open_range.end <= context_end
+                            {
                                 Some(excerpt.anchor_range(
                                     buffer_snapshot.anchor_range_inside(pair.open_range),
                                 ))
-                            };
-                            let buffer_close_range = if close_range.is_empty() {
-                                None
                             } else {
+                                None
+                            };
+
+                            let buffer_close_range = if context_start <= pair.close_range.start
+                                && pair.close_range.end <= context_end
+                            {
                                 Some(excerpt.anchor_range(
                                     buffer_snapshot.anchor_range_inside(pair.close_range),
                                 ))
+                            } else {
+                                None
                             };
 
                             if buffer_open_range.is_none() && buffer_close_range.is_none() {
@@ -784,6 +789,43 @@ mod foo «1{
             ),
             &bracket_colors_markup(&mut cx),
             "Turning bracket colorization back on refreshes the visible excerpts' bracket colors"
+        );
+    }
+
+    /// Minimal repro: a bracket pair where `{` is in the visible chunk and
+    /// the matching `}` is off-screen.  The off-screen `}` should still
+    /// receive the same colour highlight as its matching `{`.
+    #[gpui::test]
+    async fn test_bracket_color_spans_non_visible_chunk(cx: &mut gpui::TestAppContext) {
+        let comment_lines = 100;
+
+        init_test(cx, |language_settings| {
+            language_settings.defaults.colorize_brackets = Some(true);
+        });
+        let mut cx = EditorLspTestContext::new(
+            Arc::into_inner(rust_lang()).unwrap(),
+            lsp::ServerCapabilities::default(),
+            cx,
+        )
+        .await;
+
+        // `mod foo {` is at the top (visible); the matching `}` is 100+
+        // comment lines below (not visible).
+        cx.set_state(&separate_with_comment_lines(
+            "ˇmod foo {\n",
+            "}\n",
+            comment_lines,
+        ));
+
+        cx.executor().advance_clock(Duration::from_millis(100));
+        cx.executor().run_until_parked();
+
+        // Both the opening `{` and the closing `}` should share highlight 1,
+        // even though only the `{` side is in the visible viewport.
+        assert_eq!(
+            &separate_with_comment_lines("mod foo «1{\n", "}1»\n", comment_lines,),
+            &bracket_colors_markup(&mut cx),
+            "closing bracket in non-visible chunk should still be colorized",
         );
     }
 
