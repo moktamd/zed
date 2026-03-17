@@ -100,6 +100,7 @@ impl MultiBuffer {
             build_excerpt_ranges(ranges.clone(), context_line_count, &buffer_snapshot);
 
         let merged = Self::merge_excerpt_ranges(&excerpt_ranges);
+        dbg!(&merged);
         let (inserted, path_key_index) =
             self.set_merged_excerpt_ranges_for_path(path, buffer, &buffer_snapshot, merged, cx);
         // todo!() move this into the callers that care
@@ -329,6 +330,7 @@ impl MultiBuffer {
         cx: &mut Context<Self>,
     ) -> (bool, PathKeyIndex) {
         let path_key_index = self.get_or_create_path_key_index(&path_key);
+        dbg!(&path_key, &path_key_index);
         if let Some(old_path_key) = self
             .snapshot(cx)
             .path_for_buffer(buffer_snapshot.remote_id())

@@ -825,6 +825,14 @@ pub struct MultiBufferExcerpt2<'a> {
     buffer_snapshot: &'a BufferSnapshot,
 }
 
+impl<'a> fmt::Debug for MultiBufferExcerpt2<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("MultiBufferExcerpt2")
+            .field("excerpt", &self.excerpt)
+            .finish()
+    }
+}
+
 impl<'a> MultiBufferExcerpt2<'a> {
     pub fn buffer_snapshot(&self) -> &'a BufferSnapshot {
         self.buffer_snapshot
@@ -1864,7 +1872,9 @@ impl MultiBuffer {
     ) -> Vec<ExcerptRange<Point>> {
         let mut merged_ranges: Vec<ExcerptRange<Point>> = Vec::new();
         for range in expanded_ranges {
+            dbg!(&range);
             if let Some(last_range) = merged_ranges.last_mut() {
+                dbg!(&last_range);
                 assert!(
                     last_range.context.start <= range.context.start,
                     "ranges must be sorted: {last_range:?} <= {range:?}"
@@ -3268,12 +3278,13 @@ fn build_excerpt_ranges(
         .map(|range| {
             let start_row = range.start.row.saturating_sub(context_line_count);
             let start = Point::new(start_row, 0);
-            let end_row = (range.end.row + context_line_count).min(buffer_snapshot.max_point().row);
+            let end_row = (dbg!(range.end.row) + dbg!(context_line_count))
+                .min(dbg!(buffer_snapshot.max_point().row));
             let end = Point::new(end_row, buffer_snapshot.line_len(end_row));
-            ExcerptRange {
+            dbg!(ExcerptRange {
                 context: start..end,
                 primary: range,
-            }
+            })
         })
         .collect()
 }
@@ -6534,7 +6545,7 @@ impl MultiBufferSnapshot {
         include_local: bool,
     ) -> impl 'a + Iterator<Item = (ReplicaId, bool, CursorShape, Selection<Anchor>)> {
         let mut cursor = self.excerpts.cursor::<ExcerptSummary>(());
-        cursor.seek(dbg!(&range.start.seek_target(self)), Bias::Left);
+        cursor.seek(&range.start.seek_target(self), Bias::Left);
         cursor
             .take_while(move |excerpt| {
                 let excerpt_start =
@@ -6766,13 +6777,6 @@ impl MultiBufferSnapshot {
     /// Returns None if there are no excerpts.
     pub fn excerpt_for_position(&self, head: Anchor) -> Option<ExcerptInfo> {
         self.excerpt_containing2(head..head)
-    }
-
-    pub fn excerpt_for_range(
-        &self,
-        selection: Range<text::Anchor>,
-    ) -> Option<MultiBufferExcerpt2<'_>> {
-        todo!()
     }
 
     /// Returns all nonempty intersections of the given buffer range with excerpts in the multibuffer in order

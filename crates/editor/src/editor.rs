@@ -7040,7 +7040,7 @@ impl Editor {
                     .edited_ranges_for_transaction::<usize>(transaction)
                     .all(|range| {
                         multibuffer_snapshot
-                            .excerpt_for_range(buffer_snapshot.anchor_range_inside(range))
+                            .anchor_range_in_buffer(buffer_snapshot.anchor_range_inside(range))
                             .is_some()
                     })
             });
@@ -11648,6 +11648,12 @@ impl Editor {
         let hunks = self.snapshot(window, cx).hunks_for_ranges(ranges);
         self.transact(window, cx, |editor, window, cx| {
             editor.restore_diff_hunks(hunks, cx);
+            let selections = editor
+                .selections
+                .all::<MultiBufferOffset>(&editor.display_snapshot(cx));
+            editor.change_selections(SelectionEffects::no_scroll(), window, cx, |s| {
+                s.select(selections);
+            });
         });
     }
 
@@ -25078,6 +25084,12 @@ impl Editor {
                     });
                 }
             }
+        });
+        let selections = self
+            .selections
+            .all::<MultiBufferOffset>(&self.display_snapshot(cx));
+        self.change_selections(SelectionEffects::no_scroll(), window, cx, |s| {
+            s.select(selections);
         });
     }
 

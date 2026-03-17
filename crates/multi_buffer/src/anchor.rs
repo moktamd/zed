@@ -202,23 +202,29 @@ impl ExcerptAnchor {
         let Some(target) = self.try_seek_target(snapshot) else {
             return false;
         };
+        let Some(buffer_snapshot) = snapshot.buffer_for_id(self.buffer_id()) else {
+            return false;
+        };
+        if !buffer_snapshot.can_resolve(&self.text_anchor()) {
+            return false;
+        };
         let mut cursor = snapshot.excerpts.cursor::<ExcerptSummary>(());
         cursor.seek(&target, Bias::Left);
         let Some(excerpt) = cursor.item() else {
             return false;
         };
-        excerpt.buffer_id == self.text_anchor.buffer_id
+        excerpt.buffer_id == self.text_anchor().buffer_id
             && excerpt
                 .range
                 .context
                 .start
-                .cmp(&self.text_anchor(), &excerpt.buffer_snapshot(snapshot))
+                .cmp(&self.text_anchor(), buffer_snapshot)
                 .is_le()
             && excerpt
                 .range
                 .context
                 .end
-                .cmp(&self.text_anchor(), &excerpt.buffer_snapshot(snapshot))
+                .cmp(&self.text_anchor(), buffer_snapshot)
                 .is_ge()
     }
 
