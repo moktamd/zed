@@ -3339,6 +3339,7 @@ dependencies = [
  "ui",
  "util",
  "workspace",
+ "zed_actions",
 ]
 
 [[package]]
@@ -17698,6 +17699,8 @@ dependencies = [
  "db",
  "git_ui",
  "gpui",
+ "icons",
+ "livekit_client",
  "notifications",
  "platform_title_bar",
  "project",
