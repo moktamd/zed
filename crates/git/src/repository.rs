@@ -157,16 +157,6 @@ pub fn validate_worktree_directory(
     Ok(resolved)
 }
 
-/// Returns the full absolute path for a specific branch's worktree
-/// given the resolved worktree directory.
-pub fn worktree_path_for_branch(
-    working_directory: &Path,
-    worktree_directory_setting: &str,
-    branch: &str,
-) -> PathBuf {
-    resolve_worktree_directory(working_directory, worktree_directory_setting).join(branch)
-}
-
 /// Commit data needed for the git graph visualization.
 #[derive(Debug, Clone)]
 pub struct GraphCommitData {
@@ -3954,10 +3944,13 @@ mod tests {
                 repo_dir.path().canonicalize().unwrap()
             );
 
+            let worktree_path = resolve_worktree_directory(repo_dir.path(), worktree_dir_setting)
+                .join("worktree-name");
+
             // Create a new worktree
             repo.create_worktree(
                 "test-branch".to_string(),
-                resolve_worktree_directory(repo_dir.path(), worktree_dir_setting),
+                worktree_path.clone(),
                 Some("HEAD".to_string()),
             )
             .await
@@ -3967,20 +3960,18 @@ mod tests {
             let worktrees = repo.worktrees().await.unwrap();
             assert_eq!(worktrees.len(), 2);
 
-            let expected_path =
-                worktree_path_for_branch(repo_dir.path(), worktree_dir_setting, "test-branch");
             let new_worktree = worktrees
                 .iter()
                 .find(|w| w.branch() == "test-branch")
                 .expect("should find worktree with test-branch");
             assert_eq!(
                 new_worktree.path.canonicalize().unwrap(),
-                expected_path.canonicalize().unwrap(),
+                worktree_path.canonicalize().unwrap(),
                 "failed for worktree_directory setting: {worktree_dir_setting:?}"
             );
 
             // Clean up so the next iteration starts fresh
-            repo.remove_worktree(expected_path, true).await.unwrap();
+            repo.remove_worktree(worktree_path, true).await.unwrap();
 
             // Clean up the worktree base directory if it was created outside repo_dir
             // (e.g. for the "../worktrees" setting, it won't be inside the TempDir)
@@ -4025,17 +4016,18 @@ mod tests {
             .await
             .unwrap();
 
+            let worktree_path = resolve_worktree_directory(repo_dir.path(), worktree_dir_setting)
+                .join("my-worktree");
+
             // Create a worktree
             repo.create_worktree(
                 "to-remove".to_string(),
-                resolve_worktree_directory(repo_dir.path(), worktree_dir_setting),
+                worktree_path.clone(),
                 Some("HEAD".to_string()),
             )
             .await
             .unwrap();
 
-            let worktree_path =
-                worktree_path_for_branch(repo_dir.path(), worktree_dir_setting, "to-remove");
             assert!(worktree_path.exists());
 
             // Remove the worktree
@@ -4098,16 +4090,15 @@ mod tests {
             .unwrap();
 
             // Create a worktree
+            let worktree_path =
+                resolve_worktree_directory(repo_dir.path(), worktree_dir_setting).join("dirty-wt");
             repo.create_worktree(
                 "dirty-wt".to_string(),
-                resolve_worktree_directory(repo_dir.path(), worktree_dir_setting),
+                worktree_path.clone(),
                 Some("HEAD".to_string()),
             )
             .await
             .unwrap();
-
-            let worktree_path =
-                worktree_path_for_branch(repo_dir.path(), worktree_dir_setting, "dirty-wt");
 
             // Add uncommitted changes in the worktree
             smol::fs::write(worktree_path.join("dirty-file.txt"), "uncommitted")
@@ -4174,16 +4165,16 @@ mod tests {
             .unwrap();
 
             // Create a worktree
+            let old_path =
+                resolve_worktree_directory(repo_dir.path(), worktree_dir_setting).join("old-name");
             repo.create_worktree(
                 "old-name".to_string(),
-                resolve_worktree_directory(repo_dir.path(), worktree_dir_setting),
+                old_path.clone(),
                 Some("HEAD".to_string()),
             )
             .await
             .unwrap();
 
-            let old_path =
-                worktree_path_for_branch(repo_dir.path(), worktree_dir_setting, "old-name");
             assert!(old_path.exists());
 
             // Move the worktree to a new path
@@ -4350,29 +4341,6 @@ mod tests {
         // Invalid: escapes too far up
         let err = validate_worktree_directory(work_dir, "../../other-project/wt").unwrap_err();
         assert!(err.to_string().contains("outside"));
-    }
-
-    #[test]
-    fn test_worktree_path_for_branch() {
-        let work_dir = Path::new("/code/my-project");
-
-        // Outside project — repo dir name is part of the resolved directory
-        assert_eq!(
-            worktree_path_for_branch(work_dir, "../worktrees", "feature/foo"),
-            PathBuf::from("/code/worktrees/my-project/feature/foo")
-        );
-
-        // Inside project — no repo dir name inserted
-        assert_eq!(
-            worktree_path_for_branch(work_dir, ".git/zed-worktrees", "my-branch"),
-            PathBuf::from("/code/my-project/.git/zed-worktrees/my-branch")
-        );
-
-        // Trailing slash on setting (inside project)
-        assert_eq!(
-            worktree_path_for_branch(work_dir, "my-worktrees/", "branch"),
-            PathBuf::from("/code/my-project/my-worktrees/branch")
-        );
     }
 
     impl RealGitRepository {
