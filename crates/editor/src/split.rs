@@ -173,7 +173,6 @@ where
     struct PendingExcerpt {
         source_excerpt: ExcerptInfo,
         buffer_point_range: Range<Point>,
-        source_context_range: Range<Point>,
     }
 
     let mut result = Vec::new();
@@ -215,9 +214,11 @@ where
             let target_position = target_buffer.anchor_before(target_position);
             let Some(target_position) = target_snapshot.buffer_anchor_to_anchor(target_position)
             else {
+                dbg!("ONE");
                 continue;
             };
             let Some(target_excerpt) = target_snapshot.excerpt_for_position(target_position) else {
+                dbg!("TWO");
                 continue;
             };
 
@@ -259,7 +260,6 @@ where
         pending_excerpts.push(PendingExcerpt {
             source_excerpt,
             buffer_point_range,
-            source_context_range,
         });
     }
 

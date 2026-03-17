@@ -1246,17 +1246,31 @@ impl BlockMap {
         let our_buffer = wrap_snapshot.buffer_snapshot();
         let companion_buffer = companion_snapshot.buffer_snapshot();
 
+        // FIXME we lost the distinction between excluding vs including the trailing empty excerpt
+        dbg!(&bounds);
         let range = match bounds {
-            (Bound::Included(start), Bound::Excluded(end)) => start..end,
-            (Bound::Included(start), Bound::Unbounded) => start..wrap_snapshot.buffer().max_point(),
+            (Bound::Included(start), Bound::Excluded(end)) => {
+                // FIXME make it not include the trailing empty excerpt if there is one
+                start..end
+            }
+            (Bound::Included(start), Bound::Unbounded) => {
+                start..dbg!(wrap_snapshot.buffer().max_point())
+            }
             _ => unreachable!(),
         };
-        let patches = companion.convert_rows_to_companion(
+        let mut patches = companion.convert_rows_to_companion(
             display_map_id,
             companion_buffer,
             our_buffer,
             range,
         );
+        // FIXME  hack hack hack
+        if let Some(patch) = patches.last()
+            && let Bound::Excluded(..) = bounds.1
+            && patch.source_excerpt_range.is_empty()
+        {
+            patches.pop();
+        }
 
         let mut our_inlay_point_cursor = wrap_snapshot.inlay_point_cursor();
         let mut our_fold_point_cursor = wrap_snapshot.fold_point_cursor();
@@ -1294,6 +1308,7 @@ impl BlockMap {
 
             let spacer = if new_delta > delta {
                 let height = (new_delta - delta) as u32;
+                dbg!((our_point, their_point, height));
                 Some((our_wrap, height))
             } else {
                 None
@@ -1303,7 +1318,8 @@ impl BlockMap {
 
         let mut result = Vec::new();
 
-        for excerpt in patches {
+        for excerpt in dbg!(patches) {
+            dbg!(&excerpt);
             let mut source_points = (excerpt.edited_range.start.row..=excerpt.edited_range.end.row)
                 .map(|row| MultiBufferPoint::new(row, 0))
                 .chain(if excerpt.edited_range.end.column > 0 {
@@ -1380,7 +1396,7 @@ impl BlockMap {
                     result.push((
                         BlockPlacement::Above(wrap_row),
                         Block::Spacer {
-                            id: SpacerId(self.next_block_id.fetch_add(1, SeqCst)),
+                            id: dbg!(SpacerId(self.next_block_id.fetch_add(1, SeqCst))),
                             height,
                             is_below: false,
                         },
@@ -1420,7 +1436,7 @@ impl BlockMap {
                         result.push((
                             BlockPlacement::Above(wrap_row),
                             Block::Spacer {
-                                id: SpacerId(self.next_block_id.fetch_add(1, SeqCst)),
+                                id: dbg!(SpacerId(self.next_block_id.fetch_add(1, SeqCst))),
                                 height,
                                 is_below: false,
                             },
@@ -1462,7 +1478,7 @@ impl BlockMap {
                     result.push((
                         BlockPlacement::Above(wrap_row),
                         Block::Spacer {
-                            id: SpacerId(self.next_block_id.fetch_add(1, SeqCst)),
+                            id: dbg!(SpacerId(self.next_block_id.fetch_add(1, SeqCst))),
                             height,
                             is_below: false,
                         },
@@ -1471,7 +1487,7 @@ impl BlockMap {
                     result.push((
                         BlockPlacement::Above(wrap_row),
                         Block::Spacer {
-                            id: SpacerId(self.next_block_id.fetch_add(1, SeqCst)),
+                            id: dbg!(SpacerId(self.next_block_id.fetch_add(1, SeqCst))),
                             height,
                             is_below: false,
                         },
@@ -1492,7 +1508,7 @@ impl BlockMap {
                     result.push((
                         BlockPlacement::Below(wrap_row),
                         Block::Spacer {
-                            id: SpacerId(self.next_block_id.fetch_add(1, SeqCst)),
+                            id: dbg!(SpacerId(self.next_block_id.fetch_add(1, SeqCst))),
                             height,
                             is_below: true,
                         },
