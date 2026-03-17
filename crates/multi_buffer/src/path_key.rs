@@ -329,6 +329,8 @@ impl MultiBuffer {
         to_insert: &Vec<ExcerptRange<text::Anchor>>,
         cx: &mut Context<Self>,
     ) -> (bool, PathKeyIndex) {
+        dbg!("UPDATE");
+
         let path_key_index = self.get_or_create_path_key_index(&path_key);
         dbg!(&path_key, &path_key_index);
         if let Some(old_path_key) = self
@@ -365,9 +367,11 @@ impl MultiBuffer {
         // handle the case where the path key used to be associated
         // with a different buffer by removing its excerpts.
         if let Some(excerpt) = cursor.item()
-            && excerpt.path_key == path_key
-            && excerpt.buffer_id != buffer_id
+            && dbg!(&excerpt.path_key) == dbg!(&path_key)
+            && dbg!(excerpt.buffer_id) != dbg!(buffer_id)
         {
+            self.buffers.remove(&excerpt.buffer_id);
+            snapshot.buffers.remove(&excerpt.buffer_id);
             let before = cursor.position.1;
             cursor.seek_forward(&path_key, Bias::Right);
             let after = cursor.position.1;
@@ -578,6 +582,7 @@ impl MultiBuffer {
     }
 
     pub fn remove_excerpts(&mut self, path: PathKey, cx: &mut Context<Self>) {
+        dbg!("REMOVE");
         assert_eq!(self.history.transaction_depth(), 0);
         self.sync_mut(cx);
 
@@ -600,8 +605,9 @@ impl MultiBuffer {
         let changed_trailing_excerpt = suffix.is_empty();
         new_excerpts.append(suffix, ());
 
+        dbg!(&snapshot.buffers);
         if let Some(buffer_id) = buffer_id {
-            snapshot.buffers.remove(&buffer_id);
+            snapshot.buffers.remove(dbg!(&buffer_id));
             self.buffers.remove(&buffer_id);
             cx.emit(Event::BuffersRemoved {
                 removed_buffer_ids: vec![buffer_id],

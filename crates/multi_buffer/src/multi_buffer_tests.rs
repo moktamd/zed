@@ -2024,6 +2024,124 @@ fn test_set_excerpts_for_buffer_rename(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+fn test_set_excerpts_for_path_replaces_previous_buffer(cx: &mut TestAppContext) {
+    let buffer_a = cx.new(|cx| {
+        Buffer::local(
+            indoc! {
+            "alpha
+            beta
+            gamma
+            delta
+            epsilon
+            ",
+            },
+            cx,
+        )
+    });
+    let buffer_b = cx.new(|cx| {
+        Buffer::local(
+            indoc! {
+            "one
+            two
+            three
+            four
+            ",
+            },
+            cx,
+        )
+    });
+    let path: PathKey = PathKey::with_sort_prefix(0, rel_path("shared/path").into_arc());
+
+    let multibuffer = cx.new(|_| MultiBuffer::new(Capability::ReadWrite));
+
+    let (anchor_a1, anchor_a2) = multibuffer.update(cx, |multibuffer, cx| {
+        let (anchors, _) = multibuffer.set_excerpts_for_path(
+            path.clone(),
+            buffer_a.clone(),
+            vec![Point::row_range(0..1), Point::row_range(3..4)],
+            0,
+            cx,
+        );
+        let mut anchors = anchors.into_iter();
+        (
+            anchors.next().expect("should have first anchor"),
+            anchors.next().expect("should have second anchor"),
+        )
+    });
+
+    assert_excerpts_match(
+        &multibuffer,
+        cx,
+        indoc! {
+        "-----
+        alpha
+        beta
+        -----
+        delta
+        epsilon
+        "
+        },
+    );
+
+    let buffer_a_id = buffer_a.read_with(cx, |buffer, _| buffer.remote_id());
+    multibuffer.read_with(cx, |multibuffer, cx| {
+        let snapshot = multibuffer.snapshot(cx);
+        assert!(
+            snapshot
+                .excerpts()
+                .any(|excerpt| excerpt.buffer_id() == buffer_a_id),
+        );
+    });
+
+    let anchor_b = multibuffer.update(cx, |multibuffer, cx| {
+        let (anchors, _) = multibuffer.set_excerpts_for_path(
+            path.clone(),
+            buffer_b.clone(),
+            vec![Point::row_range(1..2)],
+            1,
+            cx,
+        );
+        anchors.into_iter().next().expect("should have an anchor")
+    });
+
+    let buffer_b_id = buffer_b.read_with(cx, |buffer, _| buffer.remote_id());
+    multibuffer.read_with(cx, |multibuffer, cx| {
+        let snapshot = multibuffer.snapshot(cx);
+        assert!(
+            !snapshot
+                .excerpts()
+                .any(|excerpt| excerpt.buffer_id() == buffer_a_id),
+        );
+        assert!(
+            snapshot
+                .excerpts()
+                .any(|excerpt| excerpt.buffer_id() == buffer_b_id),
+        );
+    });
+
+    assert_excerpts_match(
+        &multibuffer,
+        cx,
+        indoc! {
+        "-----
+        one
+        two
+        three
+        four
+        "
+        },
+    );
+
+    multibuffer.read_with(cx, |multibuffer, cx| {
+        let snapshot = multibuffer.snapshot(cx);
+        anchor_a1.start.cmp(&anchor_b.start, &snapshot);
+        anchor_a1.end.cmp(&anchor_b.end, &snapshot);
+        anchor_a1.start.cmp(&anchor_a2.start, &snapshot);
+        anchor_a1.end.cmp(&anchor_a2.end, &snapshot);
+    });
+}
+
+#[gpui::test]
 async fn test_diff_hunks_with_multiple_excerpts(cx: &mut TestAppContext) {
     let base_text_1 = indoc!(
         "

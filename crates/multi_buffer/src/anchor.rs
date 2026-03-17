@@ -108,13 +108,19 @@ impl ExcerptAnchor {
         // in the case that you removed the buffer containing self,
         // and added the buffer containing other with the same path key
         // (ordering is arbitrary but consistent)
-        if self.text_anchor.buffer_id != other.text_anchor.buffer_id {
+        if dbg!(self.text_anchor.buffer_id) != dbg!(other.text_anchor.buffer_id) {
             return self.text_anchor.buffer_id.cmp(&other.text_anchor.buffer_id);
         }
 
-        let Some(buffer) = snapshot.buffer_for_path(&self_path_key) else {
+        let Some(buffer) = snapshot.buffer_for_path(dbg!(&self_path_key)) else {
             return Ordering::Equal;
         };
+        // Comparing two anchors into buffer A that formerly existed at path P,
+        // when path P has since been reused for a different buffer B
+        if buffer.remote_id() != self.text_anchor.buffer_id {
+            return Ordering::Equal;
+        };
+        assert_eq!(self.text_anchor.buffer_id, buffer.remote_id());
         let text_cmp = self.text_anchor().cmp(&other.text_anchor(), buffer);
         if text_cmp != Ordering::Equal {
             return text_cmp;

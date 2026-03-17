@@ -668,6 +668,15 @@ struct BufferStateSnapshot {
     buffer_snapshot: BufferSnapshot,
 }
 
+impl fmt::Debug for BufferStateSnapshot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BufferStateSnapshot")
+            .field("path_key", &self.path_key)
+            .field("buffer_id", &self.buffer_snapshot.remote_id())
+            .finish()
+    }
+}
+
 /// The contents of a [`MultiBuffer`] at a single point in time.
 #[derive(Clone, Default)]
 pub struct MultiBufferSnapshot {
@@ -3411,17 +3420,19 @@ impl MultiBuffer {
                 let mut next_min_start_ix = 0;
                 let ranges = (0..rng.random_range(0..5))
                     .filter_map(|_| {
-                        if next_min_start_ix == buffer.len() {
+                        if next_min_start_ix >= buffer.len() {
                             return None;
                         }
                         let end_ix = buffer.clip_offset(
                             rng.random_range(next_min_start_ix..=buffer.len()),
                             Bias::Right,
                         );
-                        let start_ix = buffer
-                            .clip_offset(rng.random_range(next_min_start_ix..=end_ix), Bias::Left);
-                        next_min_start_ix = end_ix;
-                        Some(ExcerptRange::new(start_ix..end_ix))
+                        let start_ix = buffer.clip_offset(
+                            rng.random_range(dbg!(next_min_start_ix..=end_ix)),
+                            Bias::Left,
+                        );
+                        next_min_start_ix = buffer.text().ceil_char_boundary(end_ix + 1);
+                        Some(dbg!(ExcerptRange::new(start_ix..end_ix)))
                     })
                     .collect::<Vec<_>>();
                 // todo!() mutate excerpts more realistically?
@@ -3435,12 +3446,12 @@ impl MultiBuffer {
                         .collect::<Vec<_>>()
                 );
 
-                let path_key = PathKey::sorted(rng.random_range(0..max_buffers * 3) as u64);
+                let path_key = PathKey::for_buffer(&buffer_handle, cx);
                 self.set_merged_excerpt_ranges_for_path(
                     path_key.clone(),
                     buffer_handle,
                     &buffer_snapshot,
-                    ranges,
+                    dbg!(ranges),
                     cx,
                 );
                 log::info!("Inserted with path_key: {:?}", path_key);
@@ -6851,8 +6862,17 @@ impl MultiBufferSnapshot {
     fn check_invariants(&self) {
         let excerpts = self.excerpts.items(());
 
-        let all_buffer_path_keys =
-            HashSet::from_iter(self.buffers.values().map(|b| b.path_key.clone()));
+        let mut all_buffer_path_keys = HashSet::default();
+        for buffer in self.buffers.values() {
+            let path_key = buffer.path_key.clone();
+            assert!(
+                all_buffer_path_keys.insert(path_key),
+                "path key reused for multiple buffers: {:#?}",
+                self.buffers
+            );
+        }
+
+        dbg!(&self.buffers);
         let all_excerpt_path_keys = HashSet::from_iter(excerpts.iter().map(|e| e.path_key.clone()));
 
         for (ix, excerpt) in excerpts.iter().enumerate() {
@@ -6904,6 +6924,7 @@ impl MultiBufferSnapshot {
                 excerpt.path_key,
             );
         }
+        dbg!(self.excerpts.iter().count());
         assert_eq!(all_buffer_path_keys, all_excerpt_path_keys);
 
         if self.diff_transforms.summary().input != self.excerpts.summary().text {
