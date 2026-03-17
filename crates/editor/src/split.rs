@@ -233,7 +233,7 @@ where
     };
 
     for (source_excerpt, source_range) in source_snapshot.range_to_buffer_ranges(source_bounds) {
-        let buffer_id = source_excerpt.buffer_id();
+        let buffer_id = source_excerpt.buffer_id;
 
         if current_buffer_id != Some(buffer_id) {
             if let (Some(start), Some(end)) = (union_context_start.take(), union_context_end.take())
@@ -243,10 +243,11 @@ where
             current_buffer_id = Some(buffer_id);
         }
 
-        let buffer_point_range = source_range.to_point(source_excerpt.buffer_snapshot());
+        let buffer_point_range =
+            source_range.to_point(source_excerpt.buffer_snapshot(source_snapshot));
         let source_context_range = source_excerpt
             .buffer_range()
-            .to_point(source_excerpt.buffer_snapshot());
+            .to_point(source_excerpt.buffer_snapshot(source_snapshot));
 
         union_context_start = Some(union_context_start.map_or(source_context_range.start, |s| {
             s.min(source_context_range.start)
@@ -256,7 +257,7 @@ where
         }));
 
         pending_excerpts.push(PendingExcerpt {
-            source_excerpt: source_excerpt.info(),
+            source_excerpt,
             buffer_point_range,
             source_context_range,
         });

@@ -7874,21 +7874,26 @@ impl EditorElement {
             for (excerpt, buffer_range) in
                 buffer_snapshot.range_to_buffer_ranges(anchor_range.start..anchor_range.end)
             {
-                let buffer_range = excerpt.buffer_snapshot().anchor_after(buffer_range.start)
-                    ..excerpt.buffer_snapshot().anchor_before(buffer_range.end);
+                let buffer_range = excerpt
+                    .buffer_snapshot(buffer_snapshot)
+                    .anchor_after(buffer_range.start)
+                    ..excerpt
+                        .buffer_snapshot(buffer_snapshot)
+                        .anchor_before(buffer_range.end);
+                let excerpt_buffer_snapshot = excerpt.buffer_snapshot(buffer_snapshot).clone();
                 selections.extend(debug_ranges.ranges.iter().flat_map(|debug_range| {
-                    let player_color = theme
-                        .players()
-                        .color_for_participant(debug_range.occurrence_index as u32 + 1);
-                    debug_range.ranges.iter().filter_map(move |range| {
-                        if range.start.buffer_id != excerpt.buffer_id() {
+                    debug_range.ranges.iter().filter_map(|range| {
+                        let player_color = theme
+                            .players()
+                            .color_for_participant(debug_range.occurrence_index as u32 + 1);
+                        if range.start.buffer_id != excerpt.buffer_id {
                             return None;
                         }
                         let clipped_start = range
                             .start
-                            .max(&buffer_range.start, excerpt.buffer_snapshot());
+                            .max(&buffer_range.start, &excerpt_buffer_snapshot);
                         let clipped_end =
-                            range.end.min(&buffer_range.end, excerpt.buffer_snapshot());
+                            range.end.min(&buffer_range.end, &excerpt_buffer_snapshot);
                         let range =
                             buffer_snapshot.anchor_range_in_buffer(*clipped_start..*clipped_end)?;
                         let start = range.start.to_display_point(display_snapshot);

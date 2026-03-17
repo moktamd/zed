@@ -26,7 +26,7 @@ impl Editor {
 
         let bracket_matches_by_accent = self.visible_excerpts(false, cx).into_iter().fold(
             HashMap::default(),
-            |mut acc, (buffer, _, buffer_range, path_key_index)| {
+            |mut acc, (buffer, _, buffer_range, excerpt)| {
                 let buffer_snapshot = buffer.read(cx).snapshot();
                 if language_settings::language_settings(
                     buffer_snapshot.language().map(|language| language.name()),
@@ -64,16 +64,14 @@ impl Editor {
                             let buffer_open_range = if open_range.is_empty() {
                                 None
                             } else {
-                                Some(Anchor::range_in_buffer(
-                                    path_key_index,
+                                Some(excerpt.anchor_range(
                                     buffer_snapshot.anchor_range_inside(pair.open_range),
                                 ))
                             };
                             let buffer_close_range = if close_range.is_empty() {
                                 None
                             } else {
-                                Some(Anchor::range_in_buffer(
-                                    path_key_index,
+                                Some(excerpt.anchor_range(
                                     buffer_snapshot.anchor_range_inside(pair.close_range),
                                 ))
                             };

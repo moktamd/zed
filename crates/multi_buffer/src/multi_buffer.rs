@@ -108,6 +108,15 @@ impl ExcerptInfo {
         Anchor::in_buffer(self.path_key_index, self.range.context.start)
     }
 
+    pub fn buffer(&self, multibuffer: &MultiBuffer) -> Entity<Buffer> {
+        let buffer_state = multibuffer
+            .buffers
+            .get(&self.buffer_id)
+            .expect("excerpt from nonexistent buffer");
+
+        buffer_state.buffer.clone()
+    }
+
     pub fn buffer_snapshot<'a>(&self, multibuffer: &'a MultiBufferSnapshot) -> &'a BufferSnapshot {
         let buffer_state_snapshot = multibuffer
             .buffers
@@ -130,6 +139,14 @@ impl ExcerptInfo {
 
     pub fn buffer_range(&self) -> Range<text::Anchor> {
         self.range.context.clone()
+    }
+
+    pub fn anchor_range(&self, range: Range<text::Anchor>) -> Range<Anchor> {
+        Anchor::range_in_buffer(self.path_key_index, range)
+    }
+
+    pub fn anchor(&self, position: text::Anchor) -> Anchor {
+        Anchor::in_buffer(self.path_key_index, position)
     }
 }
 
@@ -3759,13 +3776,13 @@ impl MultiBufferSnapshot {
     pub fn range_to_buffer_ranges<T: ToOffset>(
         &self,
         range: Range<T>,
-    ) -> Vec<(MultiBufferExcerpt2<'_>, Range<BufferOffset>)> {
+    ) -> Vec<(ExcerptInfo, Range<BufferOffset>)> {
         let mut cursor = self.cursor::<MultiBufferOffset, BufferOffset>();
         let start = range.start.to_offset(self);
         let end = range.end.to_offset(self);
         cursor.seek(&start);
 
-        let mut result: Vec<(MultiBufferExcerpt2<'_>, Range<BufferOffset>)> = Vec::new();
+        let mut result: Vec<(ExcerptInfo, Range<BufferOffset>)> = Vec::new();
         while let Some(region) = cursor.region() {
             if region.range.start >= end {
                 break;
@@ -3783,11 +3800,11 @@ impl MultiBufferSnapshot {
                     .end
                     .min(region.buffer_range.start + end_overshoot);
                 if let Some(prev) = result.last_mut().filter(|(prev_excerpt, prev_range)| {
-                    prev_excerpt == &region.excerpt.excerpt2(self) && prev_range.end == start
+                    prev_excerpt == &region.excerpt.info() && prev_range.end == start
                 }) {
                     prev.1.end = end;
                 } else {
-                    result.push((region.excerpt.excerpt2(self), start..end));
+                    result.push((region.excerpt.info(), start..end));
                 }
             }
             cursor.next();
@@ -3803,9 +3820,9 @@ impl MultiBufferSnapshot {
             let buffer_offset =
                 BufferOffset(excerpt.range.context.start.to_offset(buffer_snapshot));
             if result.last_mut().is_none_or(|(prev_excerpt, prev_range)| {
-                prev_excerpt != &excerpt.excerpt2(self) || prev_range.end != buffer_offset
+                prev_excerpt != &excerpt.info() || prev_range.end != buffer_offset
             }) {
-                result.push((excerpt.excerpt2(self), buffer_offset..buffer_offset));
+                result.push((excerpt.info(), buffer_offset..buffer_offset));
             }
         }
 
@@ -6611,8 +6628,8 @@ impl MultiBufferSnapshot {
                 self.range_to_buffer_ranges(range)
                     .into_iter()
                     .map(|(excerpt, range)| {
-                        excerpt.buffer_snapshot().anchor_after(range.start)
-                            ..excerpt.buffer_snapshot().anchor_before(range.end)
+                        excerpt.buffer_snapshot(self).anchor_after(range.start)
+                            ..excerpt.buffer_snapshot(self).anchor_before(range.end)
                     })
             })
             .collect();

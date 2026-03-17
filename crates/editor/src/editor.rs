@@ -150,8 +150,8 @@ use markdown::Markdown;
 use mouse_context_menu::MouseContextMenu;
 use movement::TextLayoutDetails;
 use multi_buffer::{
-    ExcerptBoundaryInfo, ExpandExcerptDirection, MultiBufferDiffHunk, MultiBufferPoint,
-    MultiBufferRow, PathKeyIndex,
+    ExcerptBoundaryInfo, ExcerptInfo, ExpandExcerptDirection, MultiBufferDiffHunk,
+    MultiBufferPoint, MultiBufferRow, PathKeyIndex,
 };
 use parking_lot::Mutex;
 use persistence::DB;
@@ -5767,7 +5767,7 @@ impl Editor {
         &self,
         lsp_related_only: bool,
         cx: &mut Context<Editor>,
-    ) -> Vec<(Entity<Buffer>, clock::Global, Range<usize>, PathKeyIndex)> {
+    ) -> Vec<(Entity<Buffer>, clock::Global, Range<usize>, ExcerptInfo)> {
         let project = self.project().cloned();
         let display_snapshot = self.display_map.update(cx, |map, cx| map.snapshot(cx));
         let multi_buffer = self.buffer().read(cx);
@@ -5787,14 +5787,14 @@ impl Editor {
             .into_iter()
             .filter(|(_, excerpt_visible_range)| !excerpt_visible_range.is_empty())
             .filter_map(|(excerpt, excerpt_visible_range)| {
-                let buffer = excerpt.buffer_snapshot();
+                let buffer = excerpt.buffer_snapshot(&multi_buffer_snapshot);
                 let buffer_entity = excerpt.buffer(multi_buffer);
                 if !lsp_related_only {
                     return Some((
                         buffer_entity,
                         buffer.version().clone(),
                         excerpt_visible_range.start.0..excerpt_visible_range.end.0,
-                        excerpt.path_key_index(),
+                        excerpt,
                     ));
                 }
 
@@ -5811,7 +5811,7 @@ impl Editor {
                         buffer_entity,
                         buffer.version().clone(),
                         excerpt_visible_range.start.0..excerpt_visible_range.end.0,
-                        excerpt.path_key_index(),
+                        excerpt,
                     ))
                 }
             })
@@ -7571,17 +7571,17 @@ impl Editor {
                     match_ranges.extend(
                         regex
                             .search(
-                                excerpt.buffer_snapshot(),
+                                excerpt.buffer_snapshot(&multi_buffer_snapshot),
                                 Some(search_range.start.0..search_range.end.0),
                             )
                             .await
                             .into_iter()
                             .filter_map(|match_range| {
                                 let match_start = excerpt
-                                    .buffer_snapshot()
+                                    .buffer_snapshot(&multi_buffer_snapshot)
                                     .anchor_after(search_range.start + match_range.start);
                                 let match_end = excerpt
-                                    .buffer_snapshot()
+                                    .buffer_snapshot(&multi_buffer_snapshot)
                                     .anchor_before(search_range.start + match_range.end);
                                 let match_anchor_range =
                                     excerpt.anchor_range(match_start..match_end);
@@ -8803,10 +8803,14 @@ impl Editor {
             let breakpoints = breakpoint_store.read(cx).breakpoints(
                 &buffer,
                 Some(
-                    excerpt.buffer_snapshot().anchor_before(range.start)
-                        ..excerpt.buffer_snapshot().anchor_after(range.end),
+                    excerpt
+                        .buffer_snapshot(multi_buffer_snapshot)
+                        .anchor_before(range.start)
+                        ..excerpt
+                            .buffer_snapshot(multi_buffer_snapshot)
+                            .anchor_after(range.end),
                 ),
-                excerpt.buffer_snapshot(),
+                excerpt.buffer_snapshot(multi_buffer_snapshot),
                 cx,
             );
             for (breakpoint, state) in breakpoints {
@@ -19145,9 +19149,13 @@ impl Editor {
                     for (excerpt, buffer_range) in
                         snapshot.range_to_buffer_ranges(selection_range.start..selection_range.end)
                     {
-                        let buffer_id = excerpt.buffer_snapshot().remote_id();
-                        let start = excerpt.buffer_snapshot().anchor_before(buffer_range.start);
-                        let end = excerpt.buffer_snapshot().anchor_after(buffer_range.end);
+                        let buffer_id = excerpt.buffer_snapshot(&snapshot).remote_id();
+                        let start = excerpt
+                            .buffer_snapshot(&snapshot)
+                            .anchor_before(buffer_range.start);
+                        let end = excerpt
+                            .buffer_snapshot(&snapshot)
+                            .anchor_after(buffer_range.end);
                         buffers.insert(multi_buffer.buffer(buffer_id).unwrap());
                         buffer_id_to_ranges
                             .entry(buffer_id)
@@ -22361,11 +22369,13 @@ impl Editor {
                                 .iter()
                                 .map(|(excerpt, range)| {
                                     let start = excerpt
-                                        .buffer_snapshot()
+                                        .buffer_snapshot(&snapshot)
                                         .offset_to_point(range.start.0)
                                         .row;
-                                    let end =
-                                        excerpt.buffer_snapshot().offset_to_point(range.end.0).row;
+                                    let end = excerpt
+                                        .buffer_snapshot(&snapshot)
+                                        .offset_to_point(range.end.0)
+                                        .row;
                                     (start, end)
                                 })
                                 .collect();
@@ -23048,9 +23058,9 @@ impl Editor {
                 buffer_ranges.last()
             }?;
 
-            let buffer_range = range.to_point(excerpt.buffer_snapshot());
+            let buffer_range = range.to_point(excerpt.buffer_snapshot(&multi_buffer_snapshot));
 
-            let Some(buffer_diff) = multi_buffer.diff_for(excerpt.buffer_id()) else {
+            let Some(buffer_diff) = multi_buffer.diff_for(excerpt.buffer_id) else {
                 return Some((
                     excerpt.buffer(multi_buffer),
                     buffer_range.start.row..buffer_range.end.row,
@@ -23058,10 +23068,14 @@ impl Editor {
             };
 
             let buffer_diff_snapshot = buffer_diff.read(cx).snapshot(cx);
-            let start = buffer_diff_snapshot
-                .buffer_point_to_base_text_point(buffer_range.start, excerpt.buffer_snapshot());
-            let end = buffer_diff_snapshot
-                .buffer_point_to_base_text_point(buffer_range.end, excerpt.buffer_snapshot());
+            let start = buffer_diff_snapshot.buffer_point_to_base_text_point(
+                buffer_range.start,
+                excerpt.buffer_snapshot(&multi_buffer_snapshot),
+            );
+            let end = buffer_diff_snapshot.buffer_point_to_base_text_point(
+                buffer_range.end,
+                excerpt.buffer_snapshot(&multi_buffer_snapshot),
+            );
 
             Some((excerpt.buffer(multi_buffer), start.row..end.row))
         });
@@ -26194,7 +26208,7 @@ impl NewlineConfig {
             .range_to_buffer_ranges(range.start..range.end)
             .as_slice()
         {
-            [(excerpt, range)] => (excerpt.buffer_snapshot().clone(), range.clone()),
+            [(excerpt, range)] => (excerpt.buffer_snapshot(buffer).clone(), range.clone()),
             _ => return false,
         };
         let pair = {

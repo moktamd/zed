@@ -5062,7 +5062,7 @@ fn test_range_to_buffer_ranges(cx: &mut App) {
     );
     assert_eq!(ranges_half_open[0].1, BufferOffset(0)..BufferOffset(7));
     assert_eq!(
-        ranges_half_open[0].0.buffer_id(),
+        ranges_half_open[0].0.buffer_id,
         buffer_1.read(cx).remote_id()
     );
 
