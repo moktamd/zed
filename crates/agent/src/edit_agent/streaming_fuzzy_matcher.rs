@@ -722,6 +722,76 @@ mod tests {
         );
     }
 
+    #[gpui::test]
+    fn test_partial_last_line_matches_correct_location() {
+        // Regression test: when the last query line is a prefix of a buffer line
+        // (e.g. "fn render_search" vs "fn render_search(&self, cx: ...) -> Div {"),
+        // fuzzy_eq fails because the lengths differ too much. The matcher should
+        // still include the correct buffer line in the match range, rather than
+        // matching generic lines (like "}", empty lines) at a wrong location.
+        let text = indoc! {r#"
+            fn first_method(&self) {
+                let x = 1;
+            }
+
+            fn second_method(&self) {
+                let y = 2;
+            }
+
+            fn on_query_change(&mut self, cx: &mut Context<Self>) {
+                self.filter(cx);
+            }
+
+
+
+            fn render_search(&self, cx: &mut Context<Self>) -> Div {
+                h_flex().child("search")
+            }
+
+            fn render_agents(&self) {
+                todo!()
+            }
+        "#};
+
+        let buffer = TextBuffer::new(
+            ReplicaId::LOCAL,
+            BufferId::new(1).unwrap(),
+            text.to_string(),
+        );
+        let snapshot = buffer.snapshot();
+
+        // The model sends old_text with a PARTIAL last line.
+        // The full buffer line is "fn render_search(&self, cx: ...) -> Div {"
+        // but the query only has "fn render_search".
+        let query = "    }\n\n\n\n    fn render_search";
+
+        let mut matcher = StreamingFuzzyMatcher::new(snapshot.clone());
+        matcher.push(query, None);
+        let matches = matcher.finish();
+
+        // The match MUST include the line containing "fn render_search".
+        // If the matcher instead matches a different "}" + empty lines block
+        // (e.g. after first_method or second_method), the edit would be applied
+        // at the wrong location, causing duplication.
+        let matched_text = matches
+            .first()
+            .map(|range| snapshot.text_for_range(range.clone()).collect::<String>());
+
+        assert!(
+            matches.len() == 1,
+            "Expected exactly one match, got {}: {:?}",
+            matches.len(),
+            matched_text,
+        );
+
+        let matched_text = matched_text.unwrap();
+        assert!(
+            matched_text.contains("fn render_search"),
+            "Match should include the render_search line, but got: {:?}",
+            matched_text,
+        );
+    }
+
     #[track_caller]
     fn assert_location_resolution(text_with_expected_range: &str, query: &str, rng: &mut StdRng) {
         let (text, expected_ranges) = marked_text_ranges(text_with_expected_range, false);
