@@ -437,14 +437,13 @@ impl GitRepository for FakeGitRepository {
     fn create_worktree(
         &self,
         name: String,
-        directory: PathBuf,
+        path: PathBuf,
         from_commit: Option<String>,
     ) -> BoxFuture<'_, Result<()>> {
         let fs = self.fs.clone();
         let executor = self.executor.clone();
         let dot_git_path = self.dot_git_path.clone();
         async move {
-            let path = directory.join(&name);
             executor.simulate_random_delay().await;
             // Check for simulated error before any side effects
             fs.with_git_state(&dot_git_path, false, |state| {

@@ -1221,12 +1221,13 @@ mod git_worktrees {
         assert_eq!(worktrees.len(), 1);
         assert_eq!(worktrees[0].path, PathBuf::from(path!("/root")));
 
-        let worktree_directory = PathBuf::from(path!("/root"));
+        let worktrees_directory = PathBuf::from(path!("/root"));
+        let worktree_1_directory = worktrees_directory.join("feature-branch");
         cx.update(|cx| {
             repository.update(cx, |repository, _| {
                 repository.create_worktree(
                     "feature-branch".to_string(),
-                    worktree_directory.join("feature-branch"),
+                    worktree_1_directory.clone(),
                     Some("abc123".to_string()),
                 )
             })
@@ -1244,15 +1245,16 @@ mod git_worktrees {
             .unwrap();
         assert_eq!(worktrees.len(), 2);
         assert_eq!(worktrees[0].path, PathBuf::from(path!("/root")));
-        assert_eq!(worktrees[1].path, worktree_directory.join("feature-branch"));
+        assert_eq!(worktrees[1].path, worktree_1_directory);
         assert_eq!(worktrees[1].ref_name.as_ref(), "refs/heads/feature-branch");
         assert_eq!(worktrees[1].sha.as_ref(), "abc123");
 
+        let worktree_2_directory = worktrees_directory.join("bugfix-branch");
         cx.update(|cx| {
             repository.update(cx, |repository, _| {
                 repository.create_worktree(
                     "bugfix-branch".to_string(),
-                    worktree_directory.join("bugfix-branch"),
+                    worktree_2_directory.clone(),
                     None,
                 )
             })
@@ -1271,24 +1273,18 @@ mod git_worktrees {
             .unwrap();
         assert_eq!(worktrees.len(), 3);
 
-        let feature_worktree = worktrees
+        let worktree_1 = worktrees
             .iter()
             .find(|worktree| worktree.ref_name.as_ref() == "refs/heads/feature-branch")
             .expect("should find feature-branch worktree");
-        assert_eq!(
-            feature_worktree.path,
-            worktree_directory.join("feature-branch")
-        );
+        assert_eq!(worktree_1.path, worktree_1_directory);
 
-        let bugfix_worktree = worktrees
+        let worktree_2 = worktrees
             .iter()
             .find(|worktree| worktree.ref_name.as_ref() == "refs/heads/bugfix-branch")
             .expect("should find bugfix-branch worktree");
-        assert_eq!(
-            bugfix_worktree.path,
-            worktree_directory.join("bugfix-branch")
-        );
-        assert_eq!(bugfix_worktree.sha.as_ref(), "fake-sha");
+        assert_eq!(worktree_2.path, worktree_2_directory);
+        assert_eq!(worktree_2.sha.as_ref(), "fake-sha");
     }
 
     use crate::Project;
