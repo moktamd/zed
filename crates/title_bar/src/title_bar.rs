@@ -153,6 +153,8 @@ pub struct TitleBar {
     banner: Entity<OnboardingBanner>,
     update_version: Entity<UpdateVersion>,
     screen_share_popover_handle: PopoverMenuHandle<ContextMenu>,
+    call_stats: collab::CallStats,
+    call_stats_poll_task: Option<gpui::Task<()>>,
 }
 
 impl Render for TitleBar {
@@ -374,7 +376,7 @@ impl TitleBar {
             .detach();
         }
 
-        Self {
+        let mut this = Self {
             platform_titlebar,
             application_menu,
             workspace: workspace.weak_handle(),
@@ -386,7 +388,16 @@ impl TitleBar {
             banner,
             update_version,
             screen_share_popover_handle: PopoverMenuHandle::default(),
+            call_stats: collab::CallStats::default(),
+            call_stats_poll_task: None,
+        };
+
+        // Start polling if already in a call.
+        if ActiveCall::global(cx).read(cx).room().is_some() {
+            this.start_call_stats_polling(cx);
         }
+
+        this
     }
 
     fn worktree_count(&self, cx: &App) -> usize {
@@ -817,6 +828,15 @@ impl TitleBar {
     }
 
     fn active_call_changed(&mut self, cx: &mut Context<Self>) {
+        let in_call = ActiveCall::global(cx).read(cx).room().is_some();
+        let was_polling = self.call_stats_poll_task.is_some();
+
+        if in_call && !was_polling {
+            self.start_call_stats_polling(cx);
+        } else if !in_call && was_polling {
+            self.stop_call_stats_polling();
+        }
+
         cx.notify();
     }
 
