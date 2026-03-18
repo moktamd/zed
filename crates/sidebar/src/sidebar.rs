@@ -2494,7 +2494,7 @@ mod tests {
 
         // Add a second workspace
         multi_workspace.update_in(cx, |mw, window, cx| {
-            mw.create_workspace(window, cx);
+            mw.create_test_workspace(window, cx).detach();
         });
         cx.run_until_parked();
 
@@ -2975,7 +2975,7 @@ mod tests {
         let sidebar = setup_sidebar(&multi_workspace, cx);
 
         multi_workspace.update_in(cx, |mw, window, cx| {
-            mw.create_workspace(window, cx);
+            mw.create_test_workspace(window, cx).detach();
         });
         cx.run_until_parked();
 
@@ -3540,7 +3540,7 @@ mod tests {
 
         // Add a second workspace.
         multi_workspace.update_in(cx, |mw, window, cx| {
-            mw.create_workspace(window, cx);
+            mw.create_test_workspace(window, cx).detach();
         });
         cx.run_until_parked();
 
@@ -3630,7 +3630,7 @@ mod tests {
 
         // Add a second workspace.
         multi_workspace.update_in(cx, |mw, window, cx| {
-            mw.create_workspace(window, cx);
+            mw.create_test_workspace(window, cx).detach();
         });
         cx.run_until_parked();
 
@@ -3880,7 +3880,7 @@ mod tests {
         let sidebar = setup_sidebar(&multi_workspace, cx);
 
         multi_workspace.update_in(cx, |mw, window, cx| {
-            mw.create_workspace(window, cx);
+            mw.create_test_workspace(window, cx).detach();
         });
         cx.run_until_parked();
 
@@ -4186,7 +4186,7 @@ mod tests {
         });
 
         multi_workspace.update_in(cx, |mw, window, cx| {
-            mw.activate_next_workspace(window, cx);
+            mw.activate_index(0, window, cx);
         });
         cx.run_until_parked();
 
