@@ -301,9 +301,12 @@ impl WorktreeListDelegate {
                     .worktree_directory
                     .clone();
                 let original_repo = repo.original_repo_abs_path.clone();
+                let project_name = original_repo
+                    .file_name()
+                    .ok_or_else(|| anyhow::anyhow!("git repo must have a directory name"))?;
                 let directory =
                     validate_worktree_directory(&original_repo, &worktree_directory_setting)?;
-                let new_worktree_path = directory.join(&branch);
+                let new_worktree_path = directory.join(&branch).join(project_name);
                 let receiver =
                     repo.create_worktree(branch.clone(), new_worktree_path.clone(), commit);
                 anyhow::Ok((receiver, new_worktree_path))
