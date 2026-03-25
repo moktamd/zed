@@ -285,6 +285,15 @@ impl Inventory {
         self.last_scheduled_scenarios.back()
     }
 
+    pub fn scheduled_scenario_by_label(
+        &self,
+        label: &str,
+    ) -> Option<&(DebugScenario, DebugScenarioContext)> {
+        self.last_scheduled_scenarios
+            .iter()
+            .find(|(s, _)| s.label.as_ref() == label)
+    }
+
     pub fn list_debug_scenarios(
         &self,
         task_contexts: &TaskContexts,

@@ -1756,9 +1756,24 @@ impl RunningState {
     }
 
     pub fn rerun_session(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some((scenario, context)) = self.scenario.take().zip(self.scenario_context.take())
-            && scenario.build.is_some()
+        if let Some((cached_scenario, context)) =
+            self.scenario.take().zip(self.scenario_context.take())
+            && cached_scenario.build.is_some()
         {
+            let scenario = self
+                .workspace
+                .upgrade()
+                .and_then(|workspace| {
+                    let project = workspace.read(cx).project().read(cx);
+                    let task_store = project.task_store().read(cx);
+                    let inventory = task_store.task_inventory()?;
+                    inventory
+                        .read(cx)
+                        .scheduled_scenario_by_label(&cached_scenario.label)
+                        .map(|(s, _)| s.clone())
+                })
+                .unwrap_or(cached_scenario);
+
             let DebugScenarioContext {
                 task_context,
                 active_buffer,
