@@ -1766,6 +1766,18 @@ impl RunningState {
             } = context;
             let active_buffer = active_buffer.and_then(|buffer| buffer.upgrade());
 
+            let scenario = self
+                .project
+                .upgrade()
+                .and_then(|project| {
+                    let task_store = project.read(cx).task_store().clone();
+                    let inventory = task_store.read(cx).task_inventory()?.clone();
+                    inventory
+                        .read(cx)
+                        .scenario_by_label(&scenario.label, worktree_id)
+                })
+                .unwrap_or(scenario);
+
             self.workspace
                 .update(cx, |workspace, cx| {
                     workspace.start_debug_session(

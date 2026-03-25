@@ -663,6 +663,26 @@ impl Inventory {
         self.scenarios_from_settings.worktree_scenarios(worktree)
     }
 
+    /// Looks up a debug scenario by label from the current file-based settings.
+    pub fn scenario_by_label(
+        &self,
+        label: &str,
+        worktree_id: Option<WorktreeId>,
+    ) -> Option<DebugScenario> {
+        if let Some(worktree_id) = worktree_id {
+            if let Some(scenario) = self
+                .worktree_scenarios_from_settings(worktree_id)
+                .find(|(_, s)| s.label.as_ref() == label)
+                .map(|(_, s)| s)
+            {
+                return Some(scenario);
+            }
+        }
+        self.global_debug_scenarios_from_settings()
+            .find(|(_, s)| s.label.as_ref() == label)
+            .map(|(_, s)| s)
+    }
+
     fn worktree_templates_from_settings(
         &self,
         worktree: WorktreeId,
